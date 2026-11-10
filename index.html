@@ -646,7 +646,7 @@ function reconcileMovements(entries){
 function vehicleReconciliation(truck,date){return reconcileMovements(state.logs.filter(l=>l.truck===truck&&l.date===date).flatMap(l=>l.movements.map(m=>({m,driver:l.driver,logId:l.id}))))}
 function reconcileMarkup(result,title){return `<div class="box reconciliation"><h2>${enc(title)}</h2><p><b>Recorded Movement Miles: ${result.recorded.toFixed(2)}</b><br>Known Jurisdiction Miles (observations only): ${result.known.toFixed(2)}<br>Unattributed Recorded Miles: ${result.unknown.toFixed(2)}<br>Unaccounted Gaps: ${result.gap.toFixed(2)}<br>Overlapping Odometer Miles: ${result.overlap.toFixed(2)}<br>First-to-Last Odometer Span: ${result.span===null?'Incomplete':result.span.toFixed(2)}</p><p>${Object.entries(result.totals).map(([s,n])=>enc(s)+' '+n.toFixed(2)).join(' • ')||'No known jurisdiction allocation.'}</p><div class="${result.complete?'banner':'error'}">${result.complete?'Mileage arithmetic reconciles for available records. Carrier tax documentation remains separately unverified. This is not tax-ready or compliance-approved.':'RECONCILIATION INCOMPLETE — Do not use as verified tax totals.'}</div><ul>${result.issues.map(x=>`<li>${enc(x.message)}</li>`).join('')}</ul><p class="small">Only records in this browser are included. Gaps are not invented or assigned to states. Separate driver logs remain separate. A workday label does not prove complete calendar-day coverage.</p></div>`}
 function paperMovements(l,editable,recentFirst=true){return (recentFirst?[...l.movements].reverse():[...l.movements]).map(m=>`<div class="item paper-movement"><span class="pill">${m.stop?'COMPLETED':'ACTIVE'}</span><dl class="trip-fields">${[
- ['State',m.startState||'UNKNOWN'],['Starting Odometer',m.startOdo],['Ending Odometer',m.endOdo??'—'],['Address / Location',m.origin+' → '+m.destination],['Commodity',m.commodity||'Empty'],['Pallets or Tons',(m.quantity??'')+' '+(m.unit||'')],['START Time',new Date(m.start).toLocaleString()],['STOP Time',m.stop?new Date(m.stop).toLocaleString():'ACTIVE'],['Ticket Number',m.scaleTicketStatus==='none'?'No Scale Ticket':m.scaleTicket||'—']].map(([k,v])=>`<div><dt>${k}</dt><dd>${enc(v)}</dd></div>`).join('')}</dl><details><summary>Order, Route, Crossings & Corrections</summary><p>Customer Order: ${enc(m.customerOrder||'—')}<br>Actual Route: ${enc(m.route||'Not entered (optional)')}</p>${m.crossings.map(c=>`<p>Entering ${enc(c.state)} @ ${enc(c.odo)} • Actual Time: ${enc(c.crossedAt||'Unknown')} • Recorded: ${enc(c.time||'Unknown')}</p>`).join('')}${driverHistory(m)}</details>${m.stop&&m.destinationType==='customer'?palletReturnsMarkup(m):''}<p class="small">${mileageText(m)}</p>${editable?`<div class="actions">${m.stop&&m.destinationType==='customer'&&l.truck==='102'?btn('RETURN PALLET — Add Quantity',`recordDeliveryPallets(${JSON.stringify(m.id)})`,'green'):''}${btn('Correct Draft Load / Tickets',`editLoad(${JSON.stringify(m.id)})`,'alt')}${btn('Correct Mileage / Route',`editMileageDetails(${JSON.stringify(m.id)})`,'alt')}${m.stop?btn('Correct Ending Odometer',`correctOdo(${JSON.stringify(m.id)},'end')`,'alt'):''}${btn('State Crossings',`editCross(${JSON.stringify(m.id)})`,'alt')}</div>`:''}</div>`).join('')}
+ ['State',m.startState||'UNKNOWN'],['Starting Odometer',m.startOdo],['Ending Odometer',m.endOdo??'—'],['Address / Location',m.origin+' → '+m.destination],['Commodity',m.commodity||'Empty'],['Pallets or Tons',(m.quantity??'')+' '+(m.unit||'')],['START Time',new Date(m.start).toLocaleString()],['STOP Time',m.stop?new Date(m.stop).toLocaleString():'ACTIVE'],['Ticket Number',m.scaleTicketStatus==='none'?'No Scale Ticket':m.scaleTicket||'—']].map(([k,v])=>`<div><dt>${k}</dt><dd>${enc(v)}</dd></div>`).join('')}</dl><details><summary>Order, Route, Crossings & Corrections</summary><p>Customer Order: ${enc(m.customerOrder||'—')}<br>Actual Route: ${enc(m.route||'Not entered (optional)')}</p>${m.crossings.map(c=>`<p>Entering ${enc(c.state)} @ ${enc(c.odo)} • Actual Time: ${enc(c.crossedAt||'Unknown')} • Recorded: ${enc(c.time||'Unknown')}</p>`).join('')}${driverHistory(m)}</details>${m.stop&&m.destinationType==='customer'?palletReturnsMarkup(m):''}<p class="small">${mileageText(m)}</p>${editable?`<div class="actions">${m.stop&&['customer','TRP'].includes(m.destinationType)&&l.truck==='102'?btn('RETURN PALLET — Add Quantity',`recordDeliveryPallets(${JSON.stringify(m.id)})`,'green'):''}${btn('Correct Draft Load / Tickets',`editLoad(${JSON.stringify(m.id)})`,'alt')}${btn('Correct Mileage / Route',`editMileageDetails(${JSON.stringify(m.id)})`,'alt')}${m.stop?btn('Correct Ending Odometer',`correctOdo(${JSON.stringify(m.id)},'end')`,'alt'):''}${btn('State Crossings',`editCross(${JSON.stringify(m.id)})`,'alt')}</div>`:''}</div>`).join('')}
 
 // Post-delivery pallet returns are separate from the stopped movement's odometer and timestamp.
 // They remain available after STOP, including when another movement has started.
@@ -655,7 +655,7 @@ function recordDeliveryPallets(id){
  if(!requireDriver()||storageIssue)return fail('Saved data is unsafe. Do not enter pallet returns.');
  if(state.truck!=='102')return fail('Pallet returns are available only for Truck 102.');
  const l=log(),m=l.movements.find(x=>x.id===id);
- if(l.status!=='DRAFT'||!m||!m.stop||m.destinationType!=='customer')return fail('Choose a stopped customer delivery in an editable daily log.');
+ if(l.status!=='DRAFT'||!m||!m.stop||!['customer','TRP'].includes(m.destinationType))return fail('Choose a stopped customer delivery in an editable daily log.');
  returnPalletMovementId=id;
  const existing=(m.palletReturns||[]).reduce((n,x)=>n+x.quantity,0);
  app.innerHTML=screenHeading('RETURN PALLET — Delivery')+`<div class="box"><p><b>${enc(m.origin)} → ${enc(m.destination)}</b></p><p>STOP recorded: ${enc(new Date(m.stop).toLocaleString())} • Ending odometer: ${enc(m.endOdo)}</p><p class="small">The movement is already stopped. Enter returned pallets without reopening it or changing its mileage or timestamp.</p><p>Previously recorded returns: <b>${existing}</b> pallet(s)</p><label for="returnPalletQty">RETURN PALLET — Quantity</label><input id="returnPalletQty" type="number" inputmode="numeric" min="1" step="1" placeholder="Whole number of pallets"><label for="returnPalletNote">Optional note</label><textarea id="returnPalletNote" maxlength="500"></textarea><div class="actions">${btn('Save Return Pallets','saveDeliveryPallets()','green')}${btn('Back to Trip',"go('trip')",'alt')}</div></div>`;
@@ -667,7 +667,7 @@ function saveDeliveryPallets(){
  if(qty===null||note.length>500)return fail('Enter a positive whole-number pallet quantity and an optional note up to 500 characters.');
  const l=log(),m=l.movements.find(x=>x.id===returnPalletMovementId);
  if(l.truck!=='102')return fail('Pallet returns are available only for Truck 102.');
- if(l.status!=='DRAFT'||!m||!m.stop||m.destinationType!=='customer')return fail('The delivery is no longer eligible for a return entry.');
+ if(l.status!=='DRAFT'||!m||!m.stop||!['customer','TRP'].includes(m.destinationType))return fail('The delivery is no longer eligible for a return entry.');
  const before=clone(state),originalStop=m.stop,originalEndOdo=m.endOdo;
  const entry={id:uid(),quantity:qty,recordedAt:stamp(),driver:state.name,note};
  m.palletReturns=m.palletReturns||[];m.palletReturns.push(entry);
@@ -777,7 +777,7 @@ function destinationLabels(){for(const select of app.querySelectorAll('select'))
 const masterEditDestination=editDestination;editDestination=function(id){masterEditDestination(id);destinationLabels()};
 const masterRenderTrip=renderTrip;renderTrip=function(){
  masterRenderTrip();destinationLabels();const l=log(),a=active();
- const cards=[...app.querySelectorAll('.paper-movement')];cards.forEach((card,i)=>{const m=[...l.movements].reverse()[i];card.id='movement-'+m.id;for(const controls of card.querySelectorAll('.actions'))controls.remove();if(writable())card.insertAdjacentHTML('beforeend',`<div class="actions">${btn('EDIT TRIP',`editTrip(${JSON.stringify(m.id)})`,'alt')}${m.stop&&m.destinationType==='customer'&&l.truck==='102'?btn('RETURN PALLET — Add Quantity',`recordDeliveryPallets(${JSON.stringify(m.id)})`,'green'):''}</div>`);card.insertAdjacentHTML('beforeend',`<details><summary>Location Details</summary><p>Origin: ${enc(addressText(m.originLocation))}<br>Destination: ${enc(addressText(m.destinationLocation))}</p></details>`)});
+ const cards=[...app.querySelectorAll('.paper-movement')];cards.forEach((card,i)=>{const m=[...l.movements].reverse()[i];card.id='movement-'+m.id;for(const controls of card.querySelectorAll('.actions'))controls.remove();if(writable())card.insertAdjacentHTML('beforeend',`<div class="actions">${btn('EDIT TRIP',`editTrip(${JSON.stringify(m.id)})`,'alt')}${m.stop&&['customer','TRP'].includes(m.destinationType)&&l.truck==='102'?btn('RETURN PALLET — Add Quantity',`recordDeliveryPallets(${JSON.stringify(m.id)})`,'green'):''}</div>`);card.insertAdjacentHTML('beforeend',`<details><summary>Location Details</summary><p>Origin: ${enc(addressText(m.originLocation))}<br>Destination: ${enc(addressText(m.destinationLocation))}</p></details>`)});
  if(a&&writable()){const box=[...app.querySelectorAll('.box')].find(b=>b.querySelector('h2')?.textContent.includes('Active Movement'));if(box){box.id='active-movement';for(const b of [...box.querySelectorAll('button')])if(b.textContent!=='STOP Movement')b.remove();box.insertAdjacentHTML('beforeend',`<div class="actions">${btn('EDIT TRIP',`editTrip(${JSON.stringify(a.id)})`,'alt')}${btn('STATE CROSSINGS','openActiveCrossing()','alt')}</div>${a.crossings.map(c=>`<p class="small">Entering ${enc(c.state)} @ ${enc(c.odo)} • ${enc(c.crossedAt||'Actual time unknown')} • Recorded ${enc(c.time)}</p>`).join('')}`)}}
  const status=fuelIcon();if(status)app.insertAdjacentHTML('afterbegin','<div class="actions" id="fuel-completion">'+status+'</div>');bindDestinationCatalog();
 };
@@ -1098,6 +1098,34 @@ rememberEntryDraft=function(){
 
 // v12-test.8-consolidated.10 — approved operational corrections.
 // No schema changes: existing movement, inspection and audit records remain unchanged.
+// Arrange the load-method selector before commodity/catalog entry without replacing inputs.
+function arrangeLoadEntryFields(){
+ const mode=el('loadMode'),commodity=el('commodity'),picker=el('materialChoice');
+ if(!mode||!commodity)return;
+ const modeLabel=app.querySelector('label[for="loadMode"]');
+ const commodityLabel=app.querySelector('label[for="commodity"]');
+ const details=el('loadMethodFields'),list=el('matOptions'),notice=el('materialNotice');
+ if(!modeLabel||!commodityLabel||!details)return;
+ // Keep the dynamic method message immediately after the selector.
+ const anchor=commodityLabel;
+ for(const node of [modeLabel,mode,details])anchor.parentNode.insertBefore(node,anchor);
+ // The catalog dropdown and manual material input remain adjacent, in their original order.
+ if(picker&&notice){commodityLabel.parentNode.insertBefore(picker,commodity);commodity.parentNode.insertBefore(notice,commodity)}
+ if(list)commodity.parentNode.insertBefore(list,commodity.nextSibling);
+ commodity.setAttribute('autocapitalize','words');
+}
+function capitalizeMaterialWords(){
+ const n=el('commodity');if(!n)return;
+ const before=n.value,after=before.replace(/(^|\\s)([a-z])/g,(m,space,letter)=>space+letter.toUpperCase());
+ if(before===after)return;
+ const start=n.selectionStart,end=n.selectionEnd;
+ n.value=after;
+ try{n.setSelectionRange(start,end)}catch(_){}
+}
+document.addEventListener('input',function(e){
+ if(e.target?.id!=='commodity')return;
+ capitalizeMaterialWords();
+});
 function applyEmptyMovementVisibility(){
  const mode=el('loadMode')?.value;if(!mode)return;
  const empty=mode==='empty';
@@ -1112,13 +1140,13 @@ function applyEmptyMovementVisibility(){
  // Empty customer job-sites keep their required customer order; other empty movements clear it.
 }
 const adag10RenderLoadMethod=renderLoadMethod;
-renderLoadMethod=function(){adag10RenderLoadMethod();applyEmptyMovementVisibility()};
+renderLoadMethod=function(){adag10RenderLoadMethod();arrangeLoadEntryFields();applyEmptyMovementVisibility()};
 const adag10RefreshMaterialOptions=refreshMaterialOptions;
-refreshMaterialOptions=function(){adag10RefreshMaterialOptions();applyEmptyMovementVisibility()};
+refreshMaterialOptions=function(){adag10RefreshMaterialOptions();arrangeLoadEntryFields();applyEmptyMovementVisibility()};
 const adag10RenderTrip=renderTrip;
-renderTrip=function(){adag10RenderTrip();applyEmptyMovementVisibility()};
+renderTrip=function(){adag10RenderTrip();arrangeLoadEntryFields();applyEmptyMovementVisibility()};
 const adag11ShowDestination=showDestination;
-showDestination=function(){adag11ShowDestination();applyEmptyMovementVisibility()};
+showDestination=function(){adag11ShowDestination();arrangeLoadEntryFields();applyEmptyMovementVisibility()};
 // Display a truck-appropriate trailer selector directly on Pre-Trip.
 // Selection immediately displays the trailer checklist; No Trailer shows truck-only inspection.
 function selectPretripTrailer(){
