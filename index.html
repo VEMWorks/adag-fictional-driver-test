@@ -1098,6 +1098,34 @@ rememberEntryDraft=function(){
 
 // v12-test.8-consolidated.10 — approved operational corrections.
 // No schema changes: existing movement, inspection and audit records remain unchanged.
+// Arrange the load-method selector before commodity/catalog entry without replacing inputs.
+function arrangeLoadEntryFields(){
+ const mode=el('loadMode'),commodity=el('commodity'),picker=el('materialChoice');
+ if(!mode||!commodity)return;
+ const modeLabel=app.querySelector('label[for="loadMode"]');
+ const commodityLabel=app.querySelector('label[for="commodity"]');
+ const details=el('loadMethodFields'),list=el('matOptions'),notice=el('materialNotice');
+ if(!modeLabel||!commodityLabel||!details)return;
+ // Keep the dynamic method message immediately after the selector.
+ const anchor=commodityLabel;
+ for(const node of [modeLabel,mode,details])anchor.parentNode.insertBefore(node,anchor);
+ // The catalog dropdown and manual material input remain adjacent, in their original order.
+ if(picker&&notice){commodityLabel.parentNode.insertBefore(picker,commodity);commodity.parentNode.insertBefore(notice,commodity)}
+ if(list)commodity.parentNode.insertBefore(list,commodity.nextSibling);
+ commodity.setAttribute('autocapitalize','words');
+}
+function capitalizeMaterialWords(){
+ const n=el('commodity');if(!n)return;
+ const before=n.value,after=before.replace(/(^|\\s)([a-z])/g,(m,space,letter)=>space+letter.toUpperCase());
+ if(before===after)return;
+ const start=n.selectionStart,end=n.selectionEnd;
+ n.value=after;
+ try{n.setSelectionRange(start,end)}catch(_){}
+}
+document.addEventListener('input',function(e){
+ if(e.target?.id!=='commodity')return;
+ capitalizeMaterialWords();
+});
 function applyEmptyMovementVisibility(){
  const mode=el('loadMode')?.value;if(!mode)return;
  const empty=mode==='empty';
@@ -1112,13 +1140,13 @@ function applyEmptyMovementVisibility(){
  // Empty customer job-sites keep their required customer order; other empty movements clear it.
 }
 const adag10RenderLoadMethod=renderLoadMethod;
-renderLoadMethod=function(){adag10RenderLoadMethod();applyEmptyMovementVisibility()};
+renderLoadMethod=function(){adag10RenderLoadMethod();arrangeLoadEntryFields();applyEmptyMovementVisibility()};
 const adag10RefreshMaterialOptions=refreshMaterialOptions;
-refreshMaterialOptions=function(){adag10RefreshMaterialOptions();applyEmptyMovementVisibility()};
+refreshMaterialOptions=function(){adag10RefreshMaterialOptions();arrangeLoadEntryFields();applyEmptyMovementVisibility()};
 const adag10RenderTrip=renderTrip;
-renderTrip=function(){adag10RenderTrip();applyEmptyMovementVisibility()};
+renderTrip=function(){adag10RenderTrip();arrangeLoadEntryFields();applyEmptyMovementVisibility()};
 const adag11ShowDestination=showDestination;
-showDestination=function(){adag11ShowDestination();applyEmptyMovementVisibility()};
+showDestination=function(){adag11ShowDestination();arrangeLoadEntryFields();applyEmptyMovementVisibility()};
 // Display a truck-appropriate trailer selector directly on Pre-Trip.
 // Selection immediately displays the trailer checklist; No Trailer shows truck-only inspection.
 function selectPretripTrailer(){
