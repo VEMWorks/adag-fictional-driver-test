@@ -110,6 +110,7 @@ function loadFields(m={}){
 function readLoad(m){
  const mode=val('loadMode'),commodity=mode==='empty'?'':val('commodity'),customerOrder=mode==='empty'&&!(val('destType')==='customer'||val('corrDestType')==='customer'||(!el('destType')&&!el('corrDestType')&&currentLoad()?.destinationType==='customer'))?'':val('customerOrder');
  if(!['empty','direct','calculate','none','pallet'].includes(mode))throw Error('Select a valid load method.');
+ if(mode==='pallet'&&state.truck!=='102')throw Error('Pallet return is available only for Truck 102.');
  if(commodity.length>500||customerOrder.length>200)throw Error('Commodity or order number is too long.');
  if(mode==='empty'&&commodity)throw Error('Choose a loaded method when a commodity is entered.');
  if(mode!=='empty'&&!commodity)throw Error('Enter the commodity for this load.');
@@ -456,7 +457,7 @@ function startMovement(){
  try{
   if(val('routeEvidence').length>2000||val('initialOrigin').length>500)throw Error('Route or origin text is too long.');const startOdo=numberValue(val('startOdo'));if(startOdo===null)throw Error('Enter a valid starting odometer.');
   if(!inspectOk())throw Error('Complete a satisfactory same-day truck pre-trip inspection.');
-  const trailer=val('trailer');
+  const trailer=mayTrailer()?val('trailer'):'None';
   if(!['None',...TRAILERS].includes(trailer)||(!mayTrailer()&&trailer!=='None'))throw Error('This truck is not approved for that trailer.');
   if(unsafeUnit('truck',state.truck))throw Error('Truck has an unresolved unsafe defect. DO NOT OPERATE.');
   if(trailer!=='None'){
@@ -665,6 +666,7 @@ function saveDeliveryPallets(){
  const qty=numberValue(val('returnPalletQty'),{positive:true,integer:true}),note=val('returnPalletNote');
  if(qty===null||note.length>500)return fail('Enter a positive whole-number pallet quantity and an optional note up to 500 characters.');
  const l=log(),m=l.movements.find(x=>x.id===returnPalletMovementId);
+ if(l.truck!=='102')return fail('Pallet returns are available only for Truck 102.');
  if(l.status!=='DRAFT'||!m||!m.stop||m.destinationType!=='customer')return fail('The delivery is no longer eligible for a return entry.');
  const before=clone(state),originalStop=m.stop,originalEndOdo=m.endOdo;
  const entry={id:uid(),quantity:qty,recordedAt:stamp(),driver:state.name,note};
