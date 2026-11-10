@@ -1124,9 +1124,11 @@ showDestination=function(){adag11ShowDestination();applyEmptyMovementVisibility(
 function selectPretripTrailer(){
  const choice=el('pretripTrailerChoice')?.value||'';
  if(!['','None',...TRAILERS].includes(choice))return;
+ const previous=clone(state);
  state.forms.pretripTrailerChoice=choice;
  if(choice){state.trailer=choice;state.forms.inspectType=choice==='None'||!inspectOk('truck',state.truck)?'truck':'trailer';if(choice!=='None')state.forms.inspectTrailer=choice;}
- save();renderInspection();
+ if(!save()){state=previous;return fail('Trailer pairing was not saved.');}
+ renderInspection();
 }
 function selectInspectionTruck(){
  const selected=el('pretripTruckDisplay')?.value;
@@ -1155,7 +1157,10 @@ renderInspection=function(){
  let current=state.forms.pretripTrailerChoice;
  if(!allowed.includes(current)) current=state.forms.inspectType==='trailer'&&allowed.includes(state.forms.inspectTrailer)?state.forms.inspectTrailer:'None';
  const options=allowed.map(t=>'<option value="'+enc(t)+'" '+(t===current?'selected':'')+'>'+(t==='None'?'No Trailer':enc(t))+'</option>').join('');
- inspect.insertAdjacentHTML('afterend','<label for="pretripTrailerChoice">Trailer Configuration</label><select id="pretripTrailerChoice" onchange="selectPretripTrailer()">'+options+'</select><p class="small muted">Choose the actual trailer configuration. Flatbed or Side Dump loads the selected trailer inspection; No Trailer requires only the truck inspection.</p>');
+ if(mayTrailer())inspect.insertAdjacentHTML('afterend','<label for="pretripTrailerChoice">Trailer Pairing</label><select id="pretripTrailerChoice" onchange="selectPretripTrailer()">'+options+'</select><p class="small muted">Combined pre-trip workflow: complete Truck 102 first, then the selected trailer section opens automatically. Each unit keeps its own inspection and defect records.</p>');
+ else {state.forms.pretripTrailerChoice='None';state.forms.inspectType='truck';} 
+ const inspectTitle=box.querySelector('label[for="inspectType"]');if(inspectTitle)inspectTitle.textContent='Inspection Section';
+ if(mayTrailer()&&TRAILERS.includes(current))inspect.insertAdjacentHTML('beforebegin','<p class="small"><strong>Combined pre-trip:</strong> Truck 102 '+(inspectOk('truck',state.truck)?'✓ complete':'— inspect first')+' / '+enc(current)+' trailer '+(inspectOk('trailer',current)?'✓ complete':'— pending')+'</p>');
  for(const n of app.querySelectorAll('.legacy-defect input'))n.closest('label').classList.toggle('hide',!n.checked);
  const notes=el('inspNotes');if(notes){notes.setAttribute('autocapitalize','sentences');notes.setAttribute('spellcheck','true');notes.setAttribute('data-no-title-case','true')}
 };
