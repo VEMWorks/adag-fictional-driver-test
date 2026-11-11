@@ -1,0 +1,27 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ADAG — Read-only data recovery</title><style>body{font:17px system-ui;background:#f3f6fa;color:#17283a;max-width:680px;margin:25px auto;padding:16px}main{background:white;padding:22px;border-radius:15px}button{background:#126c48;color:white;border:0;border-radius:10px;padding:18px;font-size:19px;font-weight:700;width:100%}p{line-height:1.5}#status{white-space:pre-wrap;overflow-wrap:anywhere;background:#edf3f9;padding:14px;border-radius:9px}</style></head><body><main><h1>ADAG field-test backup</h1><p>Read-only recovery. This page does not start the trucking app, change records, or clear storage. It only reads records saved in this browser on this website.</p><p id="status" role="status">Checking browser storage…</p><button id="download" disabled>Download ADAG Backup</button><p>After downloading, find the JSON file in Files → Downloads and attach it in ChatGPT for Google Drive upload. Repeat in each browser that contains records.</p></main><script>
+(function(){
+'use strict';
+var key='adag_offline8_fictional_driver_v1',status=document.getElementById('status'),button=document.getElementById('download');
+var raw=null,parsed=null;
+try{
+ raw=localStorage.getItem(key);
+ if(raw===null){status.textContent='No ADAG fictional-driver records found in this browser. Do not clear anything. Try the browser where you entered the trips.';return;}
+ parsed=JSON.parse(raw);
+ if(!parsed||typeof parsed!=='object'||!Array.isArray(parsed.logs)){status.textContent='Saved data found, but its format is unexpected. No changes made.';return;}
+ var movements=parsed.logs.reduce(function(n,l){return n+(Array.isArray(l.movements)?l.movements.length:0)},0);
+ status.textContent='Saved data found: '+parsed.logs.length+' daily logs, '+movements+' movements, '+(parsed.inspections?.length||0)+' inspections, '+(parsed.fuels?.length||0)+' fuel entries, '+(parsed.defects?.length||0)+' defects. Ready to download.';
+ button.disabled=false;
+}catch(e){status.textContent='Unable to read stored records: '+e.message+'. No changes made.';return;}
+button.onclick=async function(){
+ try{
+ var latest=localStorage.getItem(key);
+ if(latest!==raw){status.textContent='Records changed since page loaded. Reload this backup page to capture the latest version; no records changed by this tool.';return;}
+ var bytes=new TextEncoder().encode(raw),hash=null;
+ if(crypto&&crypto.subtle){var digest=await crypto.subtle.digest('SHA-256',bytes);hash=Array.from(new Uint8Array(digest)).map(function(x){return x.toString(16).padStart(2,'0')}).join('');}
+ if(localStorage.getItem(key)!==raw){status.textContent='Records changed during export. Reload and retry.';return;}
+ var report={format:'ADAG_LOCAL_BACKUP_V1',storageKey:key,exportedAt:new Date().toISOString(),sha256:hash,byteLength:bytes.length,counts:{logs:parsed.logs.length,movements:parsed.logs.reduce(function(n,l){return n+(l.movements?.length||0)},0),inspections:parsed.inspections?.length||0,fuels:parsed.fuels?.length||0,defects:parsed.defects?.length||0},raw:raw};
+ var blob=new Blob([JSON.stringify(report,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='ADAG_LOCAL_BACKUP_'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';document.body.appendChild(a);a.click();a.remove();status.textContent='Download requested. Verify the JSON file appears in Files/Downloads. Your stored records were not changed.';setTimeout(function(){URL.revokeObjectURL(url)},30000);
+ }catch(e){status.textContent='Download failed: '+e.message+'. Stored records were not changed.';}
+};
+})();
+</script></body></html>
