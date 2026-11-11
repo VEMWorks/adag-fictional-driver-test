@@ -1308,6 +1308,27 @@ startMovement=function(){
 };
 Object.assign(window,{exportLocalBackup,selectPretripTrailer,renderTrip,renderInspection,submitInspection,startMovement,go,renderLoadMethod,refreshMaterialOptions});
 
+// Reliable START click dispatch and inline status, including iOS Safari.
+document.addEventListener('click',function(event){
+ const button=event.target.closest?.('button');
+ if(!button||!button.getAttribute('onclick')?.trim().startsWith('startMovement()'))return;
+ event.preventDefault();
+ event.stopImmediatePropagation();
+ let status=document.getElementById('adagStartStatus');
+ if(!status){status=document.createElement('p');status.id='adagStartStatus';status.setAttribute('role','status');button.insertAdjacentElement('afterend',status);}
+ status.textContent='START received — checking movement…';
+ try{
+  const before=log().movements.length;
+  window.startMovement();
+  if(document.getElementById('adagStartStatus')){
+   document.getElementById('adagStartStatus').textContent=log().movements.length>before?'Movement started.':'START did not create a movement. Check the inspection and required fields.';
+  }
+ }catch(error){
+  const message='START blocked: '+(error?.message||String(error));
+  if(document.getElementById('adagStartStatus'))document.getElementById('adagStartStatus').textContent=message;
+  fail(message);
+ }
+},true);
 document.addEventListener('input',rememberFuelDraft);document.addEventListener('change',rememberFuelDraft);
 Object.assign(window,{recordDeliveryPallets,saveDeliveryPallets});
 Object.assign(window,{editTrip,saveTrip,cancelTrip,unifiedDestinationChanged,addTripCrossing,removeTripCrossing,saveActiveCrossing,openActiveCrossing,showSavedFuel,chooseMaterial,catalogReview,inspectionIssueChanged,reconcileMovements,vehicleReconciliation,movementReview,editMileageDetails,saveMileageDetails,addDefectNote,correctOdo,editDestination,saveDestination,fuelFromTrip,meterPreview,applyMeter,stateMileage,retryStorage,inspectionSelect,editCorrection,saveCorrection,ackCorrection,localDay,save,el,val,enc,go,dateStr,uid,stamp,btn,screenHeading,notice,fail,log,active,lastMovement,miles,duration,sum,mins,formatted,mayTrailer,useTruck,nameSet,dateSet,roleSet,renderHome,addLoaner,inspectOk,renderInspection,submitInspection,renderTrip,showDestination,startMovement,stopMovement,editLoad,renderLoadMethod,updateTonnage,saveLoad,editCross,saveCross,submitLog,renderHistory,viewReport,reopenLog,renderFuel,saveFuel,renderAdminList,closeDefect,render});
