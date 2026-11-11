@@ -445,7 +445,7 @@ function renderTrip(){
  app.innerHTML=screenHeading('Daily Trip Sheet')+`<div class="box"><div class="row"><b>Truck ${enc(state.truck)} • ${enc(state.date)}</b><span class="pill">${enc(l.status)}</span></div><p class="small muted">Driver: ${enc(state.name)}. One daily log per driver and truck; trailer changes remain in this log.</p><div class="stats"><div class="stat"><strong>${l.movements.length}</strong>Movements</div><div class="stat"><strong>${sum(l).toFixed(1)}</strong>Miles</div><div class="stat"><strong>${formatted(mins(l))}</strong>Movement time</div></div></div>`+
  (!editable?notice('Submitted and reopened logs are read-only for drivers. Administrators can record corrections with history.'):
  a?`<div class="box"><h2>⏱️ Active Movement</h2><p>${enc(a.origin)} → ${enc(a.destination)}</p><p>Started ${dateStr(a.start)} • Odometer ${enc(a.startOdo)}</p><p>${enc(a.commodity||'Empty')} ${enc(a.quantity)} ${enc(a.unit)} • ${enc(a.scaleTicketStatus==='none'?'No Scale Ticket':a.scaleTicket)}</p><label for="endOdo">ENDING ODOMETER</label><input id="endOdo" type="number" inputmode="decimal"><div class="actions">${btn('STOP Movement','stopMovement()','red')}</div></div>`:
- `<div class="box"><h2>START New Movement</h2><p class="small">Enter load and available ticket information before START. Use No Scale Ticket when weights are unavailable.</p>${!inspectOk()?notice('Complete the truck pre-trip inspection before dispatch.'):''}${mayTrailer()?`<label for="trailer">Trailer</label><select id="trailer">${['None',...TRAILERS].map(t=>`<option ${state.trailer===t?'selected':''}>${t}</option>`).join('')}</select>`:''}<label for="destType">Destination type</label><select id="destType" onchange="showDestination()"><option value="TRP">TRP</option><option value="supplier">Preset material location</option><option value="customer">Customer job-site address</option><option value="other">Other noncustomer destination</option></select><div id="destWrap"></div>${loadFields()}<input id="startOdo" type="number" inputmode="decimal"><div class="actions">${btn('START Movement','startMovement()','green')}</div><p class="small muted">Never use the phone while driving. Record state-line odometer after arrival.</p></div>`)+
+ `<div class="box"><h2>START New Movement</h2><p class="small">Enter load and available ticket information before START. Use No Scale Ticket when weights are unavailable.</p>${!inspectOk()?notice('Complete the truck pre-trip inspection before dispatch.'):''}${mayTrailer()?`<label for="trailer">Trailer</label><select id="trailer">${['None',...TRAILERS].map(t=>`<option ${state.trailer===t?'selected':''}>${t}</option>`).join('')}</select>`:''}<label for="destType">Destination type</label><select id="destType" onchange="showDestination()"><option value="TRP">TRP</option><option value="supplier">Preset material location</option><option value="customer">Customer job-site address</option><option value="other">Other noncustomer destination</option></select><div id="destWrap"></div>${loadFields()}<input id="startOdo" type="number" inputmode="decimal"><div class="actions"><button type="button" class="btn green" onclick="chromeStartMovement(this)">START Movement</button><p class="small muted">Chrome START fix • 2026-11-11</p></div><p class="small muted">Never use the phone while driving. Record state-line odometer after arrival.</p></div>`)+
  `<div class="box"><h2>Recorded Movements</h2>${l.movements.map((m,i)=>`<div class="item"><b>${i+1}. ${enc(m.origin)} → ${enc(m.destination)}</b><div class="small">${dateStr(m.start)} – ${m.stop?dateStr(m.stop):'ACTIVE'} • ${enc(m.trailer)} • ${enc(m.startOdo)} → ${enc(m.endOdo??'—')}</div><div class="small">${enc(m.commodity||'Empty')} • ${enc(m.quantity)} ${enc(m.unit)} • ${enc(m.customerOrder||'')}</div>${editable?`<div class="actions">${btn('Correct Draft Load / Tickets',`editLoad(${JSON.stringify(m.id)})`,'alt')}${m.stop?btn('State Crossing',`editCross(${JSON.stringify(m.id)})`,'alt'):''}</div>`:''}${m.crossings.map(c=>`<div class="small">Entering ${enc(c.state)} @ ${enc(c.odo)}</div>`).join('')}</div>`).join('')||'<p>No movements yet.</p>'}${editable?`<div class="actions">${btn('Finish & Submit This Truck Log','submitLog()','green')}</div>`:''}</div>`;
  if(editable&&!a){showDestination();renderLoadMethod()}
 }
@@ -473,6 +473,26 @@ function startMovement(){
   Object.assign(m,readLoad(m));movementAllowed(m);m.start=stamp();if(prev&&Date.parse(m.start)<Date.parse(prev.stop))throw Error('Device time precedes the previous STOP. Correct the device clock before starting.');
   const beforeWrite=clone(state);l.movements.push(m);state.trailer=trailer;audit('startMovement',null,m);if(!save()){state=beforeWrite;return fail('START was NOT saved. Keep the trip details and use your paper record. Do not refresh.')}renderTrip();
  }catch(e){fail(e.message)}
+}
+function chromeStartMovement(button){
+ let status=document.getElementById('adagStartStatus');
+ if(!status){status=document.createElement('p');status.id='adagStartStatus';status.setAttribute('role','status');button.insertAdjacentElement('afterend',status);}
+ status.textContent='START tapped — validating trip…';
+ try{
+  const before=state.logs.reduce((n,l)=>n+l.movements.length,0);
+  startMovement();
+  const after=state.logs.reduce((n,l)=>n+l.movements.length,0);
+  if(after===before){
+   const message='START did not save a movement. Check the required fields and pre-trip inspections.';
+   const live=document.getElementById('adagStartStatus');
+   if(live)live.textContent=message;
+  }
+ }catch(error){
+  const message='START blocked: '+(error?.message||String(error));
+  const live=document.getElementById('adagStartStatus');
+  if(live)live.textContent=message;
+  fail(message);
+ }
 }
 function stopMovement(){
  if(!requireDriver()||!writable())return fail('This daily log is read-only.');
