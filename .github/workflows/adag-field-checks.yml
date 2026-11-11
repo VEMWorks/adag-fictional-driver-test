@@ -6,7 +6,7 @@ on:
     branches: [main]
 jobs:
   checks:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -14,5 +14,5 @@ jobs:
           node-version: '22'
       - run: node tests/field-corrections.test.cjs
       - run: npm install --no-save playwright
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install chromium --only-shell
       - run: node tests/browser-smoke.cjs

@@ -1291,14 +1291,19 @@ document.addEventListener('input',function(e){
 // After START succeeds, position Active Movement immediately below sticky header.
 const adag10StartMovement=startMovement;
 startMovement=function(){
- const before=log().movements.length;
- adag10StartMovement();
- if(log().movements.length>before){
-  requestAnimationFrame(()=>{
-   const target=el('active-movement');
-   if(target)target.scrollIntoView({block:'start',behavior:'instant'});
-   else window.scrollTo({top:0,behavior:'instant'});
-  });
+ // All START validation failures must be visible, including exceptions in layered validators.
+ try{
+  const before=log().movements.length;
+  adag10StartMovement();
+  if(log().movements.length>before){
+   requestAnimationFrame(()=>{
+    const target=el('active-movement');
+    if(target)target.scrollIntoView({block:'start',behavior:'instant'});
+    else window.scrollTo({top:0,behavior:'instant'});
+   });
+  }
+ }catch(e){
+  fail('Movement was NOT started: '+(e&&e.message?e.message:'Unexpected validation error')+'. Your existing trip records were not cleared.');
  }
 };
 Object.assign(window,{exportLocalBackup,selectPretripTrailer,renderTrip,renderInspection,submitInspection,startMovement,go,renderLoadMethod,refreshMaterialOptions});
