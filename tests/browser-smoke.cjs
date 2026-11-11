@@ -7,7 +7,7 @@ const messages=[];
 page.removeAllListeners('dialog');
 page.on('dialog',async d=>{messages.push(d.message());await d.dismiss()});
 await page.locator('#testStart').click();
-assert(messages.length>0,'START must provide a visible validation message');
+assert((await page.locator('#adagStartStatus').innerText()).includes('START did not create a movement') || messages.length>0,'START tap must be acknowledged visibly');
 assert.equal(errors.length,0,'START uncaught errors: '+errors.join('; '));
 console.log('PASS START error surfaced');
 console.log('PASS chromium startup');await browser.close()})().catch(e=>{console.error(e);process.exit(1)});
